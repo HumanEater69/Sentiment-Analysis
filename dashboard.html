@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentiment Analysis Neon Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    :root {
+      --bg: #05070d;
+      --bg-2: #09111c;
+      --panel: rgba(12, 18, 31, 0.84);
+      --panel-strong: rgba(14, 24, 40, 0.96);
+      --line: rgba(86, 245, 255, 0.14);
+      --line-strong: rgba(86, 245, 255, 0.28);
+      --text: #eef6ff;
+      --muted: #9eb0c6;
+      --cyan: #4ffcff;
+      --cyan-soft: rgba(79, 252, 255, 0.18);
+      --green: #41f29b;
+      --pink: #ff4fd8;
+      --amber: #ffb84d;
+      --red: #ff5a7a;
+      --shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at 20% 40%, #0d1835 0%, var(--bg) 42%, #02040a 100%); color: var(--text); font-family: 'Space Grotesk', sans-serif; overflow-x: hidden; position: relative; }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(79, 252, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 252, 255, 0.06) 1px, transparent 1px),
+        radial-gradient(circle at 15% 30%, rgba(255, 79, 216, 0.22), transparent 35%),
+        radial-gradient(circle at 85% 15%, rgba(65, 242, 155, 0.18), transparent 30%),
+        radial-gradient(circle at 75% 85%, rgba(79, 252, 255, 0.15), transparent 32%),
+        radial-gradient(circle at 25% 75%, rgba(255, 79, 216, 0.12), transparent 28%);
+      background-size: 50px 50px, 50px 50px, auto, auto, auto, auto;
+      pointer-events: none;
+      opacity: 0.85;
+      z-index: 0;
+      animation: gridDrift 20s linear infinite;
+    }
+    @keyframes gridDrift {
+      0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+      100% { background-position: 50px 50px, 50px 50px, 0 0, 0 0, 0 0, 0 0; }
+    }
+
+    .orbs::before, .orbs::after {
+      content: '';
+      position: fixed;
+      inset: auto;
+      width: 640px;
+      height: 640px;
+      border-radius: 50%;
+      filter: blur(96px);
+      pointer-events: none;
+      opacity: 0.28;
+      z-index: 0;
+      animation: orbFloat 8s ease-in-out infinite;
+    }
+    .orbs::before { left: -220px; top: 100px; background: radial-gradient(circle, rgba(255, 79, 216, 0.35), rgba(255, 79, 216, 0)); animation-delay: 0s; }
+    .orbs::after { right: -180px; top: 50px; background: radial-gradient(circle, rgba(79, 252, 255, 0.32), rgba(79, 252, 255, 0)); animation-delay: 2s; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(60px); }
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 10% 50%, rgba(79, 252, 255, 0.08), transparent 40%),
+        radial-gradient(circle at 90% 30%, rgba(65, 242, 155, 0.06), transparent 45%);
+      pointer-events: none;
+      opacity: 0.6;
+      z-index: 0;
+      animation: depthPulse 12s ease-in-out infinite;
+    }
+    @keyframes depthPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 0.8; }
+    }
+
+    .shell { position: relative; z-index: 1; max-width: 1540px; margin: 0 auto; padding: 28px 22px 40px; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+    .hero-main, .hero-side, .panel, .stat, .insight, .mini-card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(20, 30, 48, 0.9), rgba(7, 11, 18, 0.92));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+    }
+    .hero-main { padding: 28px 28px 24px; position: relative; overflow: hidden; }
+    .hero-main::after {
+      content: '';
+      position: absolute;
+      right: -70px;
+      top: -70px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79, 252, 255, 0.25) 0%, rgba(79, 252, 255, 0) 72%);
+      pointer-events: none;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font: 600 12px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      background: rgba(79, 252, 255, 0.08);
+      border: 1px solid rgba(79, 252, 255, 0.18);
+      box-shadow: 0 0 28px rgba(79, 252, 255, 0.12);
+    }
+    .title { margin: 18px 0 10px; font-size: clamp(2.25rem, 4vw, 4.8rem); line-height: 0.98; letter-spacing: -0.05em; text-wrap: balance; }
+    .title span { color: var(--cyan); text-shadow: 0 0 22px rgba(79, 252, 255, 0.35); }
+    .subtitle { max-width: 760px; color: var(--muted); font-size: 1.02rem; line-height: 1.7; margin: 0; }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .badge {
+      border-radius: 999px;
+      padding: 9px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: #d9e6f5;
+      font: 500 12px 'IBM Plex Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .hero-side { padding: 22px; display: grid; gap: 12px; align-content: start; }
+    .side-kpi {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(79, 252, 255, 0.12), rgba(255, 79, 216, 0.08));
+      border: 1px solid rgba(79, 252, 255, 0.15);
+    }
+    .side-kpi .label { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    .side-kpi .value { font-size: 2rem; font-weight: 700; margin-top: 6px; }
+    .side-kpi .note { color: #c7d4e8; margin-top: 6px; font-size: 0.92rem; line-height: 1.5; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .stat { padding: 20px; position: relative; overflow: hidden; min-height: 140px; }
+    .stat::before { content: ''; position: absolute; inset: auto -24px -24px auto; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, var(--cyan-soft) 0%, transparent 70%); }
+    .stat .label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font: 600 11px 'IBM Plex Mono', monospace; }
+    .stat .value { margin-top: 14px; font-size: clamp(1.6rem, 2.7vw, 2.6rem); font-weight: 700; line-height: 1; }
+    .stat .delta { margin-top: 10px; color: #c7d4e8; font-size: 0.95rem; line-height: 1.45; }
+    .stat .accent { display: inline-flex; align-items: center; margin-top: 10px; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+    .accent.cyan { background: rgba(79, 252, 255, 0.11); color: var(--cyan); }
+    .accent.green { background: rgba(65, 242, 155, 0.11); color: var(--green); }
+    .accent.pink { background: rgba(255, 79, 216, 0.11); color: var(--pink); }
+    .accent.amber { background: rgba(255, 184, 77, 0.11); color: var(--amber); }
+    .accent.red { background: rgba(255, 90, 122, 0.11); color: var(--red); }
+
+    .grid { display: grid; grid-template-columns: 1.4fr 0.9fr; gap: 14px; margin-bottom: 14px; }
+    .panel { padding: 18px; position: relative; }
+    .panel-head { display: flex; justify-content: space-between; gap: 14px; align-items: end; margin-bottom: 12px; }
+    .panel-title { margin: 0; font-size: 1.05rem; letter-spacing: 0.02em; }
+    .panel-sub { margin: 4px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
+    .panel-tag {
+      font: 600 11px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.14em;
+      color: #dffcff;
+      text-transform: uppercase;
+      border: 1px solid rgba(79, 252, 255, 0.16);
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(79, 252, 255, 0.06);
+      white-space: nowrap;
+    }
+    .chart { width: 100%; height: 520px; }
+    .chart.tall { height: 560px; }
+    .chart.short { height: 360px; }
+
+    .details { display: grid; grid-template-columns: 1fr 0.85fr; gap: 14px; margin-top: 14px; }
+    .insight { padding: 18px; }
+    .insight h3 { margin: 0 0 10px; font-size: 1rem; }
+    .insight ul { margin: 0; padding-left: 18px; color: #d9e6f5; line-height: 1.75; }
+    .insight li { margin-bottom: 8px; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mini-card { padding: 14px; border-radius: 18px; min-height: 118px; }
+    .mini-label { font: 600 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+    .mini-value { margin-top: 10px; font-size: 1.5rem; font-weight: 700; }
+    .mini-note { margin-top: 8px; color: #c7d4e8; font-size: 0.92rem; line-height: 1.45; }
+    .footer { margin-top: 16px; color: var(--muted); text-align: center; font-size: 0.9rem; padding-bottom: 8px; }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .app-layout {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .sidebar {
+      position: sticky;
+      top: 18px;
+      min-height: calc(100vh - 36px);
+      padding: 18px;
+      border-radius: 28px;
+      border: 1px solid rgba(79, 252, 255, 0.14);
+      background: linear-gradient(180deg, rgba(16, 22, 36, 0.88), rgba(5, 9, 15, 0.82));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 18px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 15px;
+      background: linear-gradient(135deg, rgba(79, 252, 255, 0.95), rgba(255, 79, 216, 0.8));
+      box-shadow: 0 0 24px rgba(79, 252, 255, 0.3);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+    .nav button,
+    .tabs button {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+      color: #eaf3ff;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .nav button {
+      text-align: left;
+      border-radius: 18px;
+      padding: 14px 14px 14px 16px;
+      font: 600 0.94rem 'Space Grotesk', sans-serif;
+    }
+    .nav button:hover,
+    .tabs button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(79, 252, 255, 0.22);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+    }
+    .nav button.active,
+    .tabs button.active {
+      background: linear-gradient(135deg, rgba(79, 252, 255, 0.16), rgba(255, 79, 216, 0.12));
+      border-color: rgba(79, 252, 255, 0.28);
+      box-shadow: 0 12px 30px rgba(79, 252, 255, 0.08);
+    }
+    .nav small {
+      display: block;
+      color: var(--muted);
+      margin-top: 5px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+    .sidebar-metric {
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: 18px;
+      background: linear-gradient(160deg, rgba(79, 252, 255, 0.11), rgba(255, 79, 216, 0.08));
+      border: 1px solid rgba(79, 252, 255, 0.14);
+    }
+    .sidebar-metric .label {
+      color: var(--muted);
+      font-size: 0.77rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .sidebar-metric .value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .sidebar-metric .note {
+      color: #d0dcef;
+      margin-top: 6px;
+      line-height: 1.45;
+      font-size: 0.9rem;
+    }
+    .main {
+      min-width: 0;
+      display: grid;
+      gap: 16px;
+    }
+    .hero, .panel, .stat, .insight, .mini-card, .carousel-card, .glass-card {
+      transform-style: preserve-3d;
+    }
+    .hero, .panel, .stat, .insight, .mini-card, .carousel-card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(20, 30, 48, 0.9), rgba(7, 11, 18, 0.92));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+    }
+    .panel:hover, .stat:hover, .mini-card:hover, .carousel-card:hover {
+      transform: translateY(-4px) rotateX(2deg);
+      border-color: rgba(79, 252, 255, 0.22);
+    }
+    .grid { grid-template-columns: 1.4fr 0.9fr; }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(79, 252, 255, 0.08);
+    }
+    .tabs button {
+      border-radius: 999px;
+      padding: 11px 16px;
+      font: 600 0.86rem 'IBM Plex Mono', monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-color: rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
+    }
+    .tab-panel {
+      display: none;
+      gap: 14px;
+    }
+    .tab-panel.active {
+      display: grid;
+    }
+    .tab-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .tab-strip .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .chart-shell {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(8, 14, 24, 0.92), rgba(6, 9, 15, 0.98));
+      border: 1px solid rgba(79, 252, 255, 0.12);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .chart-shell::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(79, 252, 255, 0.08), transparent 30%, rgba(255, 79, 216, 0.06));
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    .chart-shell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), inset 0 -40px 80px rgba(0,0,0,0.18);
+      pointer-events: none;
+    }
+    .skeleton {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 100%);
+      background-size: 220% 100%;
+      animation: shimmer 1.35s infinite;
+      z-index: 2;
+    }
+    .skeleton::before {
+      content: '';
+      position: absolute;
+      inset: 22px;
+      border-radius: 18px;
+      border: 1px solid rgba(79, 252, 255, 0.08);
+      box-shadow: inset 0 0 0 999px rgba(3, 7, 12, 0.32);
+    }
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 220% 50%; }
+    }
+    .chart-ready .skeleton {
+      opacity: 0;
+      transition: opacity 220ms ease;
+      pointer-events: none;
+    }
+    .carousel {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid rgba(79, 252, 255, 0.12);
+      background: linear-gradient(180deg, rgba(11, 17, 29, 0.94), rgba(4, 7, 12, 0.96));
+      box-shadow: var(--shadow);
+      padding: 18px 0 24px;
+    }
+    .carousel .rail {
+      display: flex;
+      gap: 16px;
+      width: max-content;
+      padding: 8px 18px 0;
+      animation: drift 42s linear infinite;
+    }
+    .carousel:hover .rail {
+      animation-play-state: paused;
+    }
+    .carousel-card {
+      width: 320px;
+      padding: 16px;
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      transform: perspective(1000px) rotateY(-12deg);
+      transition: transform 220ms ease, border-color 220ms ease;
+    }
+    .carousel-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(79,252,255,0.14), transparent 30%), radial-gradient(circle at bottom left, rgba(255,79,216,0.12), transparent 25%);
+      pointer-events: none;
+    }
+    .carousel-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font: 600 11px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+    .carousel-score {
+      margin-top: 12px;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .carousel-text {
+      margin-top: 10px;
+      color: #d8e5f4;
+      line-height: 1.55;
+      font-size: 0.92rem;
+      min-height: 84px;
+    }
+    .carousel-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @media (max-width: 1240px) {
+      .app-layout { grid-template-columns: 1fr; }
+      .sidebar { position: relative; min-height: auto; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .details, .hero { grid-template-columns: 1fr; }
+      .chart { height: 460px; }
+      .chart.tall { height: 500px; }
+    }
+    @media (max-width: 760px) {
+      .app-shell { padding: 12px; }
+      .metrics { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+      .chart, .chart.tall, .chart.short { height: 400px; }
+      .title { font-size: 2.1rem; }
+      .panel-head { align-items: start; flex-direction: column; }
+      .tabs { width: 100%; }
+      .tabs button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orbs"></div>
+  <main class="app-shell">
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div>
+            <h1>Sentiment Studio</h1>
+            <p>Dark neon analyst workspace for review intelligence.</p>
+          </div>
+        </div>
+        <div class="sidebar-metric">
+          <div class="label">Rows Analyzed</div>
+          <div class="value">4,984</div>
+          <div class="note">Cleaned review sample with real polarity scoring.</div>
+        </div>
+        <nav class="nav" id="sidebarNav">
+          <button class="active" data-tab="overview">Overview<small>Command center</small></button>
+          <button data-tab="cinematic">Cinematic Feed<small>Auto-scrolling cards</small></button>
+          <button data-tab="lab">3-D Lab<small>Interactive scatter + heat</small></button>
+          <button data-tab="language">Language<small>Top terms + text signals</small></button>
+          <button data-tab="insights">Insights<small>Decision support</small></button>
+        </nav>
+        <div class="sidebar-metric">
+          <div class="label">Polarized Share</div>
+          <div class="value">83.4%</div>
+          <div class="note">Positive sentiment dominates the sample.</div>
+        </div>
+      </aside>
+
+      <section class="main">
+        <section class="hero">
+          <div class="hero-main">
+            <div class="eyebrow">Sentiment Analysis Command Center</div>
+            <h1 class="title">Dark Neon <span>3-D</span> Review Intelligence Dashboard</h1>
+            <p class="subtitle">A professional static app that blends TextBlob polarity, star ratings, helpfulness, and language fingerprints into a cinematic executive dashboard.</p>
+            <div class="hero-badges">
+              <span class="badge">Liquid Glass</span>
+              <span class="badge">Tabbed Layout</span>
+              <span class="badge">3D Chart Depth</span>
+              <span class="badge">Cinematic Scroller</span>
+              <span class="badge">Skeleton Loading</span>
+            </div>
+          </div>
+          <div class="hero-side">
+            <div class="side-kpi">
+              <div class="label">Model Lens</div>
+              <div class="value">TextBlob</div>
+              <div class="note">Polarity is computed from text, not just score proxies.</div>
+            </div>
+            <div class="side-kpi">
+              <div class="label">Mismatch Rate</div>
+              <div class="value">9.2%</div>
+              <div class="note">Useful for spotting sarcasm and review ambiguity.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="metrics">
+          <div class="stat"><div class="label">Total Clean Reviews</div><div class="value">4,984</div><div class="accent cyan">Coverage</div><div class="delta">Unique, non-empty reviews retained after cleaning.</div></div>
+          <div class="stat"><div class="label">Average Score</div><div class="value">4.15/5</div><div class="accent green">Rating</div><div class="delta">The star baseline is strongly skewed positive.</div></div>
+          <div class="stat"><div class="label">Positive Share</div><div class="value">83.4%</div><div class="accent pink">Sentiment</div><div class="delta">TextBlob polarity above zero, mapped to positive sentiment.</div></div>
+          <div class="stat"><div class="label">Consensus Score</div><div class="value">90.8%</div><div class="accent amber">Alignment</div><div class="delta">Share of reviews where polarity and stars align.</div></div>
+          <div class="stat"><div class="label">Avg Words / Review</div><div class="value">75</div><div class="accent red">Text Depth</div><div class="delta">Longer reviews usually carry more contextual nuance.</div></div>
+        </section>
+
+        <section class="carousel">
+          <div class="tab-strip" style="padding: 0 18px 10px; border: 0; background: transparent;">
+            <div>
+              <h2 style="margin:0; font-size:1.05rem;">Cinematic Review Scroller</h2>
+              <p class="hint">Liquid glass cards glide horizontally and pause on hover for a premium presentation layer.</p>
+            </div>
+            <div class="panel-tag">Auto Motion</div>
+          </div>
+          <div class="rail">
+            <article class="carousel-card"><div class="carousel-tag">Positive · Score 5</div><div class="carousel-score">Taste leads the story</div><div class="carousel-text">A polished, premium view of the review corpus where positive tone, long-form descriptions, and helpful votes create a trustworthy executive signal.</div><div class="carousel-meta"><span>82 words</span><span>Helpfulness 0.41</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Neutral · Score 3</div><div class="carousel-score">Middle ground matters</div><div class="carousel-text">This lane is where uncertainty lives. The carousel highlights the mids with softer motion and a cooler glow to indicate mixed intent.</div><div class="carousel-meta"><span>64 words</span><span>Helpfulness 0.36</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Negative · Score 1</div><div class="carousel-score">Signal the friction</div><div class="carousel-text">Low-star reactions carry the clearest operational value. They expose taste inconsistency, product expectation gaps, and delivery friction.</div><div class="carousel-meta"><span>71 words</span><span>Helpfulness 0.34</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Positive · Score 4</div><div class="carousel-score">Quality with nuance</div><div class="carousel-text">A confident but less absolute lane. These reviews often reflect good products with minor caveats, which is useful for refinement.</div><div class="carousel-meta"><span>79 words</span><span>Helpfulness 0.42</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Positive · Score 5</div><div class="carousel-score">Taste leads the story</div><div class="carousel-text">A polished, premium view of the review corpus where positive tone, long-form descriptions, and helpful votes create a trustworthy executive signal.</div><div class="carousel-meta"><span>82 words</span><span>Helpfulness 0.41</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Neutral · Score 3</div><div class="carousel-score">Middle ground matters</div><div class="carousel-text">This lane is where uncertainty lives. The carousel highlights the mids with softer motion and a cooler glow to indicate mixed intent.</div><div class="carousel-meta"><span>64 words</span><span>Helpfulness 0.36</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Negative · Score 1</div><div class="carousel-score">Signal the friction</div><div class="carousel-text">Low-star reactions carry the clearest operational value. They expose taste inconsistency, product expectation gaps, and delivery friction.</div><div class="carousel-meta"><span>71 words</span><span>Helpfulness 0.34</span></div></article>
+            <article class="carousel-card"><div class="carousel-tag">Positive · Score 4</div><div class="carousel-score">Quality with nuance</div><div class="carousel-text">A confident but less absolute lane. These reviews often reflect good products with minor caveats, which is useful for refinement.</div><div class="carousel-meta"><span>79 words</span><span>Helpfulness 0.42</span></div></article>
+          </div>
+        </section>
+
+        <div class="tabs" id="tabsBar">
+          <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="cinematic">Cinematic Feed</button>
+          <button data-tab="lab">3-D Lab</button>
+          <button data-tab="language">Language</button>
+          <button data-tab="insights">Insights</button>
+        </div>
+
+        <section class="tab-panel active" data-tab-panel="overview">
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Executive Summary</h2>
+                  <p class="panel-sub">High-level sentiment mix and the strongest alignment indicators.</p>
+                </div>
+                <div class="panel-tag">Glass Card</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Positive</div><div class="mini-value">4,157</div><div class="mini-note">83.4% of the sample.</div></div>
+                <div class="mini-card"><div class="mini-label">Neutral</div><div class="mini-value">469</div><div class="mini-note">9.4% of the sample.</div></div>
+                <div class="mini-card"><div class="mini-label">Negative</div><div class="mini-value">358</div><div class="mini-note">7.2% of the sample.</div></div>
+                <div class="mini-card"><div class="mini-label">5-Star / Negative</div><div class="mini-value">74</div><div class="mini-note">Context gaps, irony, and phrasing mismatches.</div></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Decision Signals</h2>
+                  <p class="panel-sub">Compact operational metrics for review triage.</p>
+                </div>
+                <div class="panel-tag">Signals</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Average Polarity</div><div class="mini-value">0.245</div><div class="mini-note">Overall tone across the sample.</div></div>
+                <div class="mini-card"><div class="mini-label">3-Star Neutral Share</div><div class="mini-value">15.0%</div><div class="mini-note">Middle ratings cluster near neutrality.</div></div>
+                <div class="mini-card"><div class="mini-label">Avg Helpfulness</div><div class="mini-value">0.40</div><div class="mini-note">Helpfulness votes per review on average.</div></div>
+                <div class="mini-card"><div class="mini-label">Dataset Mode</div><div class="mini-value">5,000</div><div class="mini-note">Notebook-scale sample from the review corpus.</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="cinematic">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Cinematic Feed Details</h2>
+                <p class="panel-sub">Use this feed to spot narrative tone and qualitative texture at a glance.</p>
+              </div>
+              <div class="panel-tag">Hover to Pause</div>
+            </div>
+            <p class="subtitle" style="max-width:none; margin-bottom: 0;">The scrolling layer repeats automatically for a cinematic effect. Hover the track to freeze it and inspect the visual rhythm of the cards.</p>
+          </div>
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Motion Design Rules</h2>
+                  <p class="panel-sub">Liquid glass, specular highlights, and depth-aware hover states.</p>
+                </div>
+                <div class="panel-tag">Glass UI</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Background</div><div class="mini-value">Neon</div><div class="mini-note">Soft aurora gradients and grid overlays.</div></div>
+                <div class="mini-card"><div class="mini-label">Motion</div><div class="mini-value">Drift</div><div class="mini-note">Subtle continuous motion without clutter.</div></div>
+                <div class="mini-card"><div class="mini-label">Edges</div><div class="mini-value">Glass</div><div class="mini-note">Blurred panels with crisp neon borders.</div></div>
+                <div class="mini-card"><div class="mini-label">Hover</div><div class="mini-value">Lift</div><div class="mini-note">3D-style elevation on focus and hover.</div></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Feed Intent</h2>
+                  <p class="panel-sub">The scroller acts like a feature reel, not a data table.</p>
+                </div>
+                <div class="panel-tag">Feature Reel</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Primary Goal</div><div class="mini-value">Narrative</div><div class="mini-note">Make the dashboard feel premium and editorial.</div></div>
+                <div class="mini-card"><div class="mini-label">Secondary Goal</div><div class="mini-value">Clarity</div><div class="mini-note">Keep the motion readable and never noisy.</div></div>
+                <div class="mini-card"><div class="mini-label">Approach</div><div class="mini-value">Repeat</div><div class="mini-note">Duplicate cards allow seamless scrolling.</div></div>
+                <div class="mini-card"><div class="mini-label">Surface</div><div class="mini-value">Gloss</div><div class="mini-note">High-gloss surfaces with subtle internal lighting.</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="lab">
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">3-D Review Space</h2>
+                  <p class="panel-sub">Word count, helpfulness ratio, and polarity rendered in a cinematic 3D scene.</p>
+                </div>
+                <div class="panel-tag">Interactive 3D</div>
+              </div>
+              <div class="chart-shell" id="scatterShell"><div class="skeleton"></div><div id="scatter3d" class="chart tall"></div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Sentiment Mix</h2>
+                  <p class="panel-sub">Distribution across labels with a polished executive donut.</p>
+                </div>
+                <div class="panel-tag">Summary</div>
+              </div>
+              <div class="chart-shell" id="donutShell"><div class="skeleton"></div><div id="donut" class="chart short"></div></div>
+              <div class="mini-grid" style="margin-top:12px;">
+                <div class="mini-card"><div class="mini-label">Positive</div><div class="mini-value">4,157</div><div class="mini-note">83.4%.</div></div>
+                <div class="mini-card"><div class="mini-label">Negative</div><div class="mini-value">358</div><div class="mini-note">7.2%.</div></div>
+                <div class="mini-card"><div class="mini-label">Neutral</div><div class="mini-value">469</div><div class="mini-note">9.4%.</div></div>
+                <div class="mini-card"><div class="mini-label">Mismatch</div><div class="mini-value">9.2%</div><div class="mini-note">Agreement gap between score and polarity.</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Star Rating vs Sentiment</h2>
+                  <p class="panel-sub">Heatmap with depth-heavy framing and luminous axes.</p>
+                </div>
+                <div class="panel-tag">Heatmap</div>
+              </div>
+              <div class="chart-shell" id="heatShell"><div class="skeleton"></div><div id="heatmap" class="chart"></div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">3D Feel Controls</h2>
+                  <p class="panel-sub">Visual principles used across the dashboard.</p>
+                </div>
+                <div class="panel-tag">Depth</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Perspective</div><div class="mini-value">1000px</div><div class="mini-note">Layering and shadow create real depth perception.</div></div>
+                <div class="mini-card"><div class="mini-label">Glow</div><div class="mini-value">Neon</div><div class="mini-note">Soft cyan and magenta bloom at surfaces.</div></div>
+                <div class="mini-card"><div class="mini-label">Motion</div><div class="mini-value">Hover</div><div class="mini-note">Cards rise and rotate slightly on focus.</div></div>
+                <div class="mini-card"><div class="mini-label">Loading</div><div class="mini-value">Skeleton</div><div class="mini-note">Shimmer masks keep the app feeling alive while charts render.</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="language">
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Language Fingerprint</h2>
+                  <p class="panel-sub">Most frequent non-trivial words appearing across summary and review text.</p>
+                </div>
+                <div class="panel-tag">Top Terms</div>
+              </div>
+              <div class="chart-shell" id="topShell"><div class="skeleton"></div><div id="topterms" class="chart"></div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Language Clues</h2>
+                  <p class="panel-sub">The most common words in the dataset reveal what people actually talk about.</p>
+                </div>
+                <div class="panel-tag">Signals</div>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">good</div><div class="mini-value">2,264</div><div class="mini-note">Frequent descriptor in the review corpus.</div></div>
+                <div class="mini-card"><div class="mini-label">great</div><div class="mini-value">2,178</div><div class="mini-note">Frequent descriptor in the review corpus.</div></div>
+                <div class="mini-card"><div class="mini-label">like</div><div class="mini-value">2,126</div><div class="mini-note">Frequent descriptor in the review corpus.</div></div>
+                <div class="mini-card"><div class="mini-label">taste</div><div class="mini-value">1,608</div><div class="mini-note">Frequent descriptor in the review corpus.</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="insights">
+          <div class="details">
+            <div class="insight">
+              <h3>Analyst Notes</h3>
+              <ul>
+                <li>Positive sentiment dominates the sample, which matches the expected bias of product review datasets.</li>
+                <li>Helpfulness and review length become more informative in the 3D space than in simple one-dimensional charts.</li>
+                <li>Most polarity mismatches happen in short, ambiguous, or sarcastic reviews, where context is compressed.</li>
+                <li>For operational use, the 3-star and low-helpfulness clusters are the most useful triage zones.</li>
+              </ul>
+            </div>
+            <div class="insight">
+              <h3>Decision Signals</h3>
+              <div class="mini-grid">
+                <div class="mini-card"><div class="mini-label">Consensus Score</div><div class="mini-value">90.8%</div><div class="mini-note">Share of reviews where polarity and stars align.</div></div>
+                <div class="mini-card"><div class="mini-label">Average Polarity</div><div class="mini-value">0.245</div><div class="mini-note">A compact read on the overall review tone.</div></div>
+                <div class="mini-card"><div class="mini-label">3-Star Neutral Share</div><div class="mini-value">15.0%</div><div class="mini-note">Neutral sentiment concentrates around the middle rating.</div></div>
+                <div class="mini-card"><div class="mini-label">Avg Helpfulness</div><div class="mini-value">0.40</div><div class="mini-note">Helpfulness votes per review on average.</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="footer">Generated from the SentimentAnalysis_AkulAttre review sample · Dark neon design · Self-contained static dashboard</div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const scatterData = {"x": [24, 54, 272, 181, 85, 22, 140, 66, 50, 23, 22, 53, 128, 45, 71, 120, 63, 148, 93, 96, 41, 34, 108, 130, 99, 50, 86, 30, 30, 72, 33, 53, 132, 16, 56, 166, 19, 136, 42, 93, 33, 269, 99, 59, 35, 82, 64, 20, 44, 38, 53, 93, 43, 29, 23, 21, 46, 139, 21, 27, 34, 68, 34, 175, 121, 38, 80, 71, 472, 46, 40, 21, 35, 64, 42, 33, 272, 85, 703, 74, 36, 113, 64, 287, 24, 121, 82, 45, 122, 140, 34, 186, 55, 30, 255, 138, 29, 79, 436, 41, 65, 41, 141, 64, 38, 57, 26, 32, 44, 29, 43, 31, 46, 49, 36, 86, 35, 50, 21, 81, 60, 45, 24, 57, 83, 82, 61, 29, 57, 42, 238, 24, 62, 58, 23, 26, 32, 25, 110, 187, 31, 25, 57, 59, 35, 20, 216, 40, 113, 108, 43, 53, 18, 35, 49, 42, 40, 38, 22, 175, 19, 60, 472, 122, 331, 50, 21, 37, 47, 38, 18, 122, 26, 45, 16, 23, 86, 94, 32, 51, 73, 65, 362, 363, 76, 28, 34, 338, 105, 92, 151, 20, 44, 93, 45, 65, 114, 42, 86, 22, 45, 65, 96, 76, 93, 205, 49, 127, 22, 40, 20, 17, 81, 21, 28, 90, 21, 34, 26, 114, 49, 68, 148, 237, 909, 132, 26, 21, 58, 83, 36, 55, 140, 49, 45, 27, 129, 55, 26, 36, 44, 104, 77, 205, 93, 71, 46, 99, 27, 29, 52, 62, 222, 77, 65, 68, 63, 34, 79, 29, 32, 70, 22, 120, 60, 64, 38, 58, 69, 120, 66, 27, 132, 86, 43, 152, 23, 184, 28, 26, 38, 66, 72, 132, 98, 71, 35, 35, 73, 85, 34, 59, 65, 136, 35, 30, 23, 56, 35, 39, 46, 160, 130, 78, 58, 87, 23, 91, 48, 21, 28, 33, 125, 32, 40, 61, 44, 193, 62, 46, 56, 180, 46, 62, 90, 14, 83, 172, 22, 19, 99, 44, 25, 94, 63, 21, 100, 104, 33, 127, 30, 16, 49, 22, 85, 72, 35, 106, 17, 143, 29, 24, 146, 99, 85, 42, 254, 45, 39, 238, 130, 49, 137, 45, 214, 42, 25, 111, 27, 73, 23, 55, 84, 67, 88, 21, 33, 53, 72, 134, 75, 57, 25, 20, 40, 79, 45, 57, 34, 117, 171, 46, 101, 30, 32, 75, 29, 29, 40, 20, 148, 76, 21, 308, 134, 22, 72, 26, 37, 77, 68, 37, 111, 108, 32, 47, 16, 26, 342, 22, 23, 70, 265, 21, 32, 24, 150, 31, 22, 53, 211, 65, 60, 55, 242, 27, 34, 101, 87, 39, 20, 66, 65, 65, 40, 46, 41, 69, 35, 23, 102, 113, 73, 109, 47, 146, 66, 168, 23, 36, 46, 158, 217, 37, 19, 18, 159, 25, 99, 43, 43, 62, 68, 81, 56, 145, 51, 50, 23, 134, 38, 326, 16, 140, 78, 24, 81, 140, 83, 89, 98, 67, 79, 48, 16, 35, 100, 24, 100, 15, 59, 80, 68, 34, 144, 32, 84, 61, 16, 53, 27, 142, 79, 33, 23, 28, 166, 46, 29, 96, 94, 58, 49, 231, 53, 157, 69, 69, 65, 18, 41, 24, 32, 36, 26, 94, 31, 20, 30, 38, 201, 36, 30, 231, 43, 42, 96, 292, 36, 92, 22, 40, 63, 37, 146, 53, 298, 23, 124, 26, 96, 19, 160, 45, 116, 79, 22, 21, 61, 62, 31, 68, 201, 42, 54, 22, 15, 65, 36, 22, 50, 92, 82, 46, 67, 40, 115, 41, 126, 38, 247, 132, 26, 45, 46, 91, 26, 141, 164, 51, 25, 25, 61, 133, 43, 157, 94, 195, 42, 42, 32, 67, 22, 23, 30, 21, 60, 53, 41, 55, 95, 45, 42, 36, 39, 36, 60, 69, 583, 30, 83, 51, 69, 186, 95, 24, 117, 28, 44, 61, 226, 50, 57, 31, 142, 72, 82, 22, 31, 43, 308, 107, 32, 272, 36, 68, 20, 67, 35, 28, 94, 52, 60, 79, 91, 19, 26, 53, 96, 59, 74, 149, 48, 48, 23, 55, 45, 208, 34, 36, 66, 188, 120, 53, 26, 91, 92, 399, 28, 127, 27, 59, 18, 48, 83, 108, 48, 26, 40, 16, 28, 82, 30, 43, 22, 44, 70, 60, 70, 58, 28, 70, 24, 31, 29, 116, 592, 54, 82, 29, 66, 116, 81, 296, 543, 56, 138, 181, 21, 55, 34, 183, 317, 41, 101, 37, 29, 45, 58, 34, 26, 45, 38, 97, 21, 26, 151, 114, 81, 24, 69, 55, 19, 123, 22, 73, 107, 30, 39, 87, 122, 77, 125, 26, 21, 144, 22, 50, 44, 73, 47, 33, 67, 64, 26, 40, 22, 100, 49, 45, 99, 25, 31, 25, 32, 76, 125, 39, 28, 113, 32, 62, 84, 93, 43, 62, 160, 56, 59, 241, 48, 90, 34, 37, 65, 83, 13, 89, 65, 30, 65, 69, 25, 58, 314, 73, 194, 26, 34, 32, 115, 41, 29, 66, 20, 450, 106, 27, 149, 34, 32, 39, 23, 31, 20, 69, 72, 40, 30, 456, 25, 34, 35, 44, 108, 22, 250, 26, 80, 53, 67, 45, 23, 58, 215, 24, 56, 57, 51, 133, 150, 52, 54, 132, 218, 80, 39, 64, 20, 29, 27, 54, 89, 20, 137, 53, 69, 61, 33, 31, 91, 69, 107, 78, 24, 32, 68, 57, 73, 28, 27, 40, 62, 77, 35, 72, 40, 21, 29, 45, 17, 22, 43, 90, 58, 101, 90, 47, 24, 35, 75, 18, 35, 22, 147, 25, 38, 55, 143, 36, 209, 48, 21, 50, 133, 41, 77, 84, 21, 145, 50, 116, 16, 22, 25, 28, 37, 30, 35, 137, 36, 19, 82, 42, 94, 53, 237, 56, 107, 21, 27, 57, 270, 26, 89, 21, 29, 65, 46, 65, 43, 33, 46, 72, 62, 17, 94, 61, 63, 139, 67, 23, 53, 26, 33, 86, 178, 90, 40, 50, 28, 49, 24, 33, 33, 54, 26, 337, 342, 57, 65, 33, 80, 28, 34, 77, 420, 164, 47, 66, 28, 32, 169, 183, 51, 67, 34, 63, 28, 69, 25, 100, 30, 57, 79, 55, 51, 51, 88, 26, 18, 53, 155, 24, 87, 22, 31, 40, 177, 112, 213, 39, 61, 97, 53, 60, 37, 47, 24, 34, 260, 224, 27, 199, 33, 26, 81, 452, 65, 68, 47, 87, 70, 21, 16, 41, 39, 76, 50, 24, 39, 54, 54, 47, 142, 29, 106, 35, 136, 27, 20, 68, 199, 99, 59, 75, 42, 19, 37, 54, 26, 39, 70, 55, 57, 25, 27, 87, 28, 105, 22, 29, 331, 112, 133, 73, 160, 21, 26, 67, 18, 95, 31, 80, 62, 47, 34, 21, 83, 99, 71, 54, 337, 87, 85, 276, 42, 25, 159, 232, 36, 72, 109, 42, 28, 56, 157, 205, 70, 80, 19, 140, 12, 37, 27, 74, 125, 54, 60, 19, 22, 22, 53, 76, 35, 31, 52, 86, 52, 21, 109, 28, 174, 33, 117, 58, 47, 197, 15, 24, 85, 257, 23, 60, 101, 45, 96, 22, 16, 33, 36, 61, 177, 121, 75, 45, 30, 35, 32, 70, 38, 79, 22, 71, 18, 20, 274, 44, 53, 63, 51, 29, 19, 35, 22, 33, 20, 98, 88, 131], "y": [0.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.471, 0.0, 0.0, 0.0, 0.867, 0.0, 0.0, 1.0, 0.0, 0.0, 0.231, 0.0, 1.0, 1.0, 1.0, 0.0, 0.571, 0.0, 0.0, 1.0, 0.0, 0.958, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.5, 1.0, 0.25, 0.0, 0.0, 0.667, 1.0, 0.0, 1.0, 0.8, 0.0, 1.0, 0.5, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.833, 0.0, 1.0, 1.0, 0.667, 1.0, 0.25, 1.0, 0.0, 0.0, 0.667, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.5, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.889, 1.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.417, 0.0, 0.0, 0.0, 1.0, 0.0, 0.667, 0.5, 0.0, 0.0, 1.0, 0.667, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.667, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.25, 0.0, 0.0, 0.182, 0.0, 1.0, 0.0, 0.333, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.333, 0.8, 0.0, 0.0, 0.0, 0.96, 1.0, 0.0, 1.0, 1.0, 0.333, 1.0, 0.0, 1.0, 1.0, 0.533, 0.5, 1.0, 1.0, 0.0, 0.286, 1.0, 0.0, 0.75, 0.0, 0.0, 1.0, 0.0, 0.8, 0.0, 0.895, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.75, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.913, 1.0, 0.0, 1.0, 0.0, 0.991, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 1.0, 0.0, 0.75, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 1.0, 0.8, 0.0, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.429, 0.0, 0.0, 1.0, 0.0, 0.875, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.333, 1.0, 1.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.571, 0.0, 0.333, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.333, 0.0, 0.25, 0.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.667, 0.0, 0.0, 0.0, 0.429, 0.875, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.167, 0.5, 0.0, 1.0, 0.0, 0.5, 0.839, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.667, 0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.778, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.818, 0.0, 0.0, 1.0, 0.0, 0.417, 0.0, 1.0, 1.0, 0.931, 1.0, 1.0, 0.857, 1.0, 0.0, 0.641, 0.0, 1.0, 0.5, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.25, 0.0, 0.0, 1.0, 0.0, 0.0, 0.8, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.4, 1.0, 1.0, 1.0, 0.0, 0.143, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.833, 1.0, 1.0, 1.0, 0.5, 1.0, 0.0, 0.909, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.667, 0.0, 0.667, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.812, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.667, 1.0, 0.6, 0.0, 0.0, 0.667, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 0.0, 0.0, 1.0, 0.75, 1.0, 0.0, 1.0, 0.982, 0.8, 1.0, 1.0, 1.0, 0.0, 0.2, 0.75, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.167, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.875, 0.5, 0.833, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.333, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.741, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.667, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.667, 0.0, 0.0, 0.973, 0.0, 0.0, 0.667, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.636, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.333, 0.0, 0.0, 0.0, 1.0, 1.0, 0.625, 0.333, 1.0, 0.833, 1.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.2, 0.875, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.5, 0.0, 1.0, 0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.857, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 1.0, 0.0, 1.0, 1.0, 0.667, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.0, 0.333, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.667, 0.0, 0.5, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.667, 1.0, 0.8, 1.0, 0.667, 1.0, 0.0, 0.889, 0.0, 0.0, 0.0, 0.0, 0.0, 0.714, 0.0, 0.667, 1.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 0.8, 0.0, 0.0, 1.0, 0.0, 1.0, 0.2, 0.8, 0.5, 1.0, 0.75, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.667, 0.833, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.2, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.235, 0.0, 0.333, 1.0, 0.0, 1.0, 1.0, 0.875, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.667, 0.0, 1.0, 0.0, 0.5, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.333, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.857, 0.333, 0.333, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.667, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.2, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.333, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.667, 0.667, 0.0, 1.0, 0.75, 0.0, 0.5, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.6, 0.0, 0.917, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 1.0, 0.0, 0.5, 0.0, 0.5, 0.75, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.222, 0.0, 0.0, 1.0, 0.25, 0.0, 0.0, 0.0, 0.091, 0.0, 0.5, 0.0, 0.667, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.714, 0.0, 0.0, 0.875, 0.909, 0.6, 0.0, 0.875, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.286, 0.0], "z": [0.419, 0.065, 0.268, 0.316, 0.16, 0.172, 0.152, 0.328, 0.462, -0.042, 0.7, 0.321, 0.328, 0.112, 0.355, 0.246, -0.106, 0.217, 0.256, 0.067, 0.0, 0.35, 0.281, 0.131, 0.084, 0.35, 0.175, 0.167, 0.029, 0.099, -0.058, 0.475, 0.355, 0.35, 0.195, 0.344, 0.25, 0.176, 0.125, 0.137, 0.317, 0.257, 0.391, 0.4, 0.163, 0.4, 0.234, 0.533, 0.333, 0.442, 0.134, 0.321, 0.288, 0.094, 0.133, 0.167, 0.25, 0.142, 0.433, 0.5, 0.367, 0.231, -0.025, 0.35, 0.043, 0.094, 0.332, 0.495, 0.151, 0.004, 0.5, 0.2, 0.547, 0.38, 0.291, -0.562, 0.172, 0.46, 0.146, 0.256, 0.305, 0.228, 0.159, 0.23, 0.0, 0.412, 0.098, 0.222, -0.193, 0.178, 0.4, 0.129, 0.403, 0.532, 0.186, 0.176, 0.233, 0.054, 0.182, 0.423, 0.517, 0.132, -0.148, 0.373, 0.562, 0.0, 0.558, 0.49, 0.41, 0.467, 0.071, 0.307, 0.264, 0.381, 0.348, 0.322, 0.056, 0.373, 0.8, 0.167, -0.14, 0.112, 0.8, 0.253, 0.226, 0.11, 0.248, 0.25, 0.396, 0.542, -0.029, 0.717, 0.187, 0.214, 0.317, 0.429, 0.215, 0.468, 0.016, 0.107, 0.207, 0.698, 0.1, 0.9, 0.4, 0.217, 0.038, -0.166, 0.452, 0.109, 0.229, 0.419, 0.4, 0.0, 0.086, 0.305, 0.142, 0.3, 0.081, 0.124, 0.128, 0.371, 0.082, 0.261, 0.215, -0.015, 0.55, 0.32, 0.509, 0.236, 0.475, 0.302, 0.067, 0.033, 0.567, 0.272, 0.434, 0.181, 0.336, 0.466, 0.177, 0.14, 0.168, 0.161, 0.386, 0.22, 0.108, 0.132, 0.452, 0.229, 0.11, 0.266, 0.229, 0.293, 0.248, 0.289, 0.105, -0.032, 0.232, 0.938, 0.067, 0.112, 0.389, 0.467, 0.095, 0.148, 0.318, 0.219, 0.538, 0.202, 0.233, -0.3, 0.415, 0.175, 0.523, 0.474, 0.256, 0.506, 0.355, 0.4, 0.455, -0.1, 0.154, 0.233, 0.154, 0.347, 0.604, 0.282, 0.486, -0.275, -0.083, 0.129, 0.168, 0.264, 0.078, 0.6, 0.143, -0.128, 0.4, 0.433, 0.225, 0.17, 0.05, 0.233, 0.45, -0.091, 0.011, 0.316, 0.0, -0.158, 0.273, 0.426, 0.239, 0.249, 0.073, 0.086, 0.39, 0.098, 0.13, 0.253, 0.265, 0.26, 0.588, -0.052, 0.043, 0.293, 0.451, 0.325, -0.111, 0.002, 0.225, 0.5, 0.238, 0.047, 0.422, 0.301, 0.185, 0.2, 0.467, 0.32, 0.455, -0.113, 0.142, 0.262, 0.264, 0.153, 0.133, 0.328, 0.35, 0.098, 0.5, 0.331, 0.287, 0.149, -0.48, 0.086, 0.312, 0.1, 0.1, 0.388, 0.17, 0.089, -0.051, 0.107, 0.479, 0.109, 0.433, 0.121, 0.11, 0.0, 0.683, 0.283, 0.08, 0.231, -0.312, 0.346, 0.345, 0.299, 0.147, 0.05, 0.428, 0.195, 0.26, -0.498, 0.409, 0.45, 0.314, 0.295, 0.287, 0.025, 0.318, 0.558, -0.169, 0.278, -0.023, 0.91, 0.228, 0.215, 0.482, 0.093, 0.381, 0.5, 0.382, 0.4, -0.182, 0.043, 0.368, 0.234, 0.0, 0.418, 0.161, 0.45, 0.424, 0.273, 0.088, 0.288, 0.196, 0.475, -0.133, 0.2, 0.233, 0.201, 0.268, 0.775, 0.101, 0.408, 0.411, 0.014, 0.162, 0.257, 0.429, 0.145, 0.272, 0.164, -0.071, 0.825, 0.3, -0.203, 0.148, 0.268, 0.417, 0.561, 0.322, 0.0, 0.265, 0.086, 0.203, 0.379, 0.212, -0.007, 0.033, 0.266, 0.162, 0.062, 0.478, 0.277, 0.0, 0.3, 0.375, 0.55, 0.118, 0.002, 0.489, 0.156, -0.142, 0.45, 0.407, 0.425, 0.512, -0.067, 0.168, 0.32, 0.054, -0.019, 0.465, 0.051, 0.396, 0.475, 0.198, 0.533, 0.45, 0.152, 0.02, 0.1, 0.592, -0.056, 0.243, 0.35, 0.367, 0.021, 0.285, 0.126, 0.311, 0.417, 0.171, 0.065, -0.21, 0.072, 0.045, 0.332, -0.123, 0.442, 0.129, 0.625, 0.263, 0.14, -0.056, 0.192, 0.197, 0.588, 0.138, 0.288, 0.733, 0.111, 0.0, 0.251, 0.479, 0.24, 0.604, 0.032, 0.467, 0.149, 0.097, 0.15, 0.675, 0.5, -0.18, 0.0, 0.093, 0.214, 0.402, 0.344, 0.478, 0.377, 0.402, 0.283, 0.14, 0.355, -1.0, 0.244, 0.6, 0.053, -0.2, 0.358, 0.355, 0.3, 0.355, 0.191, 0.248, 0.515, 0.389, 0.133, 0.236, 0.513, 0.395, 0.479, -0.198, 0.014, 0.263, -0.781, -0.105, 0.329, -0.196, -0.042, 0.168, -0.367, 0.097, 0.08, -0.063, 0.0, 0.469, 0.001, 0.063, 0.442, 0.4, 0.717, 0.201, 0.386, 0.5, -0.018, 0.132, 0.286, 0.215, 0.12, 0.207, 0.093, 0.316, 0.418, -0.281, 0.355, 0.433, 0.267, 0.1, 0.9, 0.812, 0.176, 0.167, 0.58, -0.058, 0.375, 0.322, -0.045, 0.572, 0.158, 0.525, 0.188, 0.274, 0.128, 0.0, 0.217, 0.5, -0.008, 0.16, 0.317, 0.206, 0.338, 0.161, 0.174, 0.294, 0.65, 0.167, -0.378, 0.167, 0.178, 0.138, 0.129, 0.447, 0.4, 0.172, 0.305, 0.167, -0.5, 0.14, 0.4, 0.475, 0.583, 0.352, -0.102, 0.275, 0.6, 0.509, 0.257, 0.404, 0.4, 0.047, 0.265, -0.307, 0.256, 0.079, 0.305, 0.132, 0.23, 0.467, 0.229, 0.263, 0.186, 0.312, 0.15, 0.23, 0.404, 0.364, 0.412, 0.144, -0.097, 0.612, 0.169, 0.354, 0.308, -0.146, 0.091, 0.25, -0.116, 0.306, 0.417, 0.033, 0.119, 0.3, 0.342, 0.042, 0.289, 0.004, 0.394, 0.082, 0.688, 0.291, 0.38, 0.289, 0.232, 0.142, 1.0, 0.248, 0.28, 0.479, 0.117, -0.054, -0.069, 0.363, 0.391, -0.238, 0.203, -0.126, 0.52, 0.004, 0.038, 0.047, 0.067, 0.16, 0.412, -0.144, 0.138, -0.038, 0.24, 0.577, 0.254, 0.256, 0.358, 0.247, 0.193, 0.417, 0.271, 0.1, 0.417, 0.412, 0.1, 0.09, 0.2, 0.143, -0.083, 0.386, 0.131, -0.104, 0.175, -0.165, 0.314, -0.068, 0.2, 0.194, 0.35, 0.0, 0.239, 0.208, 0.164, 0.345, 0.219, -0.483, 0.212, 0.173, 0.222, 0.533, 0.038, 0.145, 0.442, 0.667, 0.002, 0.137, -0.083, 0.143, 0.3, 0.266, 0.104, 0.5, 0.193, 0.062, 0.367, 0.462, 0.48, 0.5, 0.273, 0.33, 0.288, 0.375, 0.096, 0.042, 0.356, 0.8, 0.008, 0.169, 0.129, 0.131, 0.4, 0.141, 0.246, -0.03, 0.125, 0.133, 0.426, 0.39, 0.07, 1.0, 0.121, 0.418, 0.149, 0.211, 0.6, 0.153, 0.466, 0.029, 0.354, -0.032, 0.8, 0.616, 0.16, 0.444, 0.338, 0.0, 0.5, 0.219, 0.264, 0.023, -0.04, 0.025, 0.246, 0.45, 0.133, 0.2, 0.227, 0.118, 0.7, 0.104, 0.047, 0.312, 0.333, 0.067, 0.0, 0.433, 0.261, 0.418, 0.2, 0.333, 0.287, 0.475, 0.127, 0.454, 0.371, 0.264, 0.502, 0.482, 0.461, 0.088, 0.139, 0.214, 0.0, 0.071, 0.368, 0.018, 0.25, 0.212, 0.427, 0.08, 0.422, 0.7, -0.061, 0.252, 0.254, 0.484, 0.422, 0.242, 0.289, -0.087, 0.036, 0.378, 0.351, 0.108, 0.233, 0.232, 0.358, 0.625, 0.311, 0.206, 0.219, 0.338, 0.017, 0.28, 0.233, 0.176, 0.136, 0.193, 0.545, 0.805, 0.47, 0.253, 0.267, 0.24, 0.294, 0.032, 0.022, 0.242, 0.195, 0.076, 0.12, 0.6, 0.217, 0.6, 0.66, 0.7, 0.254, -0.007, 0.487, 0.193, 0.225, -0.117, 0.246, 0.262, 0.339, 0.397, 0.725, 0.286, 0.0, 0.271, 0.194, 0.299, 0.417, 0.175, 0.256, 0.236, 0.622, 0.104, 0.384, 0.45, 0.152, 0.134, 0.398, 0.217, 0.324, 0.26, 0.253, 0.45, 0.231, -0.429, -0.183, 0.275, 0.197, -0.067, 0.655, -0.072, -0.073, -0.05, -0.1, 0.21, 0.279, 0.103, 0.136, 0.078, -0.101, 0.475, 0.394, -0.02, 0.151, 0.02, 0.133, 0.45, 0.073, 0.546, -0.091, 0.024, 0.21, 0.12, 0.317, 0.55, 0.413, -0.225, 0.563, 0.5, -0.236, 0.095, 0.153, 0.336, 0.01, 0.362, 0.25, 0.383, 0.317, 0.154, -0.25, 0.402, 0.667, 0.164, 0.321, 0.335, 0.167, 0.235, 0.275, 0.855, -0.076, 0.179, -0.108, 0.212, 0.242, 0.08, -0.029, 0.171, -0.085, -0.089, 0.233, 0.307, -0.239, 0.667, -0.031, 0.183, -0.088, 0.231, 0.017, 0.392, 0.312, 0.257, 0.432, 0.023, 0.352, 0.232, 0.555, 0.401, 0.296, 0.093, 0.317, 0.041, 0.179, 0.327, 0.222, -0.442, 0.0, -0.062, 0.127, 0.04, 0.186, -0.253, 0.41, 0.154, 0.0, 0.265, 0.157, 0.003, 0.6, 0.272, 0.31, -0.038, 0.392, 0.267, 0.383, 0.425, 0.304, 0.244, 0.167, 0.0, 0.06, 0.32, 0.397, 0.45, 0.186, 0.047, 0.342, -0.275, 0.196, 0.302, 0.85, -0.164, 0.276, -0.036, 0.387, 0.26, 0.261, 0.331, 0.3, 0.468, 0.271, 0.285, 0.219, 0.142, 0.352, 0.568, 0.233, 0.186, 0.283, 0.45, 0.467, -0.058, -0.387, 0.367, 0.083, 0.292, 0.331, 0.308, 0.63, 0.197, -0.1, 0.4, 0.4, 0.5, 0.4, 0.285, 0.25, 0.197, -0.033, 0.22, 0.186, 0.095, 0.8, 0.77, 0.342, 0.451, 0.7, 0.29, 0.265, 0.112, 0.22, 0.14, 0.17, -0.03, 0.01, 0.579, 0.337, 0.125, 0.141, 0.546, 0.308, -0.3, -0.171, 0.615, 0.267, 0.187, 0.525, 0.358, 0.101, 0.204, 0.034, -0.078, 0.075, -0.144, -0.075, 0.1, 0.004, 0.617, 0.222, 0.25, 0.208, 0.239, 0.52, 0.13, 0.182, 0.177, 0.27, 0.269, 0.165, 0.116, 0.1, 0.362, 0.238, 0.9, -0.004, 0.475, 0.415, 0.358, 0.202, 0.112, 0.248, 0.33, 0.309, -0.066, 0.367, 0.343, 0.394, 1.0, 0.107, 0.45, 0.4, 0.237, 0.361, 0.5, 0.069, -0.044, 0.181, 0.154, -0.137, 0.291, 0.39, 0.384, 0.136, -0.09, 0.5, 0.317, 0.246, 0.562, 0.136, 0.043, 0.111, 0.375, 0.048, 0.429, -0.003, 0.445, -0.036, -0.405, 0.19, 0.162, 0.0, 0.298, 0.373, 0.172, 0.024, 0.196, 0.0, 0.592, 0.381, 0.358, 0.419, 0.393, 0.232, -0.062, 0.227, 0.114, 0.181, 0.311, 0.625, 0.022, 0.314, 0.061, 0.005, -0.007, 0.126, 0.5, 0.175, 0.396, 0.188, 0.667, 0.32, 0.092, 0.294, 0.23, 0.295, 0.489, 0.4, -0.211, 0.431, 0.217, -0.115, 0.16, 0.196, 0.314, 0.417, 0.332, -0.21, 0.127, 0.454, 0.988, 0.402, 0.033, 0.333, 0.028, 0.225, 0.21, 0.262, 0.36, 0.115, 0.315, 0.583, 0.507, 0.307, 0.667, 0.087, -0.132, 0.432], "label": ["Score 4 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 3 · Positive", "Score 5 · Neutral", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 2 · Positive", "Score 1 · Neutral", "Score 1 · Negative", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 3 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 3 · Negative", "Score 1 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Neutral", "Score 5 · Positive", "Score 1 · Neutral", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 2 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 2 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 3 · Neutral", "Score 1 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 2 · Negative", "Score 1 · Positive", "Score 1 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 4 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 3 · Neutral", "Score 3 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 1 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 3 · Negative", "Score 4 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 5 · Negative", "Score 3 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 1 · Negative", "Score 3 · Positive", "Score 1 · Negative", "Score 2 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Negative", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Neutral", "Score 2 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Negative", "Score 3 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Negative", "Score 5 · Positive", "Score 2 · Neutral", "Score 2 · Neutral", "Score 2 · Neutral", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 1 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 3 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 3 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 1 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 2 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 4 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Neutral", "Score 3 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 3 · Positive", "Score 1 · Positive", "Score 4 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Neutral", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 4 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 1 · Negative", "Score 2 · Negative", "Score 1 · Neutral", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 2 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 3 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 4 · Neutral", "Score 3 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 3 · Neutral", "Score 4 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Neutral", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Negative", "Score 3 · Positive", "Score 3 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 1 · Negative", "Score 4 · Neutral", "Score 5 · Negative", "Score 3 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 3 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 2 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Neutral", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Negative", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 1 · Negative", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 2 · Positive", "Score 4 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 2 · Neutral", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 2 · Neutral", "Score 5 · Negative", "Score 4 · Positive", "Score 1 · Negative", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 4 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Negative", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 1 · Positive", "Score 2 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Positive", "Score 5 · Neutral", "Score 3 · Positive", "Score 5 · Positive", "Score 5 · Neutral", "Score 2 · Positive", "Score 4 · Neutral", "Score 4 · Positive", "Score 5 · Neutral", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Neutral", "Score 5 · Neutral", "Score 5 · Positive", "Score 2 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 1 · Negative", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 4 · Neutral", "Score 5 · Positive", "Score 1 · Neutral", "Score 5 · Positive", "Score 3 · Positive", "Score 5 · Positive", "Score 4 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 5 · Positive", "Score 2 · Negative", "Score 5 · Positive"], "size": [4, 7, 12, 12, 9, 4, 11, 8, 7, 4, 4, 7, 11, 6, 8, 10, 7, 12, 9, 9, 6, 5, 10, 11, 9, 7, 9, 5, 5, 8, 5, 7, 11, 4, 7, 12, 4, 11, 6, 9, 5, 12, 9, 7, 5, 9, 8, 4, 6, 6, 7, 9, 6, 5, 4, 4, 6, 11, 4, 5, 5, 8, 5, 12, 11, 6, 8, 8, 12, 6, 6, 4, 5, 8, 6, 5, 12, 9, 12, 8, 6, 10, 8, 12, 4, 11, 9, 6, 11, 11, 5, 12, 7, 5, 12, 11, 5, 8, 12, 6, 8, 6, 11, 8, 6, 7, 5, 5, 6, 5, 6, 5, 6, 7, 6, 9, 5, 7, 4, 9, 7, 6, 4, 7, 9, 9, 7, 5, 7, 6, 12, 4, 7, 7, 4, 5, 5, 5, 10, 12, 5, 5, 7, 7, 5, 4, 12, 6, 10, 10, 6, 7, 4, 5, 7, 6, 6, 6, 4, 12, 4, 7, 12, 11, 12, 7, 4, 6, 6, 6, 4, 11, 5, 6, 4, 4, 9, 9, 5, 7, 8, 8, 12, 12, 8, 5, 5, 12, 10, 9, 12, 4, 6, 9, 6, 8, 10, 6, 9, 4, 6, 8, 9, 8, 9, 12, 7, 11, 4, 6, 4, 4, 9, 4, 5, 9, 4, 5, 5, 10, 7, 8, 12, 12, 12, 11, 5, 4, 7, 9, 6, 7, 11, 7, 6, 5, 11, 7, 5, 6, 6, 10, 8, 12, 9, 8, 6, 9, 5, 5, 7, 7, 12, 8, 8, 8, 7, 5, 8, 5, 5, 8, 4, 10, 7, 8, 6, 7, 8, 10, 8, 5, 11, 9, 6, 12, 4, 12, 5, 5, 6, 8, 8, 11, 9, 8, 5, 5, 8, 9, 5, 7, 8, 11, 5, 5, 4, 7, 5, 6, 6, 12, 11, 8, 7, 9, 4, 9, 6, 4, 5, 5, 11, 5, 6, 7, 6, 12, 7, 6, 7, 12, 6, 7, 9, 4, 9, 12, 4, 4, 9, 6, 5, 9, 7, 4, 10, 10, 5, 11, 5, 4, 7, 4, 9, 8, 5, 10, 4, 11, 5, 4, 12, 9, 9, 6, 12, 6, 6, 12, 11, 7, 11, 6, 12, 6, 5, 10, 5, 8, 4, 7, 9, 8, 9, 4, 5, 7, 8, 11, 8, 7, 5, 4, 6, 8, 6, 7, 5, 10, 12, 6, 10, 5, 5, 8, 5, 5, 6, 4, 12, 8, 4, 12, 11, 4, 8, 5, 6, 8, 8, 6, 10, 10, 5, 6, 4, 5, 12, 4, 4, 8, 12, 4, 5, 4, 12, 5, 4, 7, 12, 8, 7, 7, 12, 5, 5, 10, 9, 6, 4, 8, 8, 8, 6, 6, 6, 8, 5, 4, 10, 10, 8, 10, 6, 12, 8, 12, 4, 6, 6, 12, 12, 6, 4, 4, 12, 5, 9, 6, 6, 7, 8, 9, 7, 12, 7, 7, 4, 11, 6, 12, 4, 11, 8, 4, 9, 11, 9, 9, 9, 8, 8, 6, 4, 5, 10, 4, 10, 4, 7, 8, 8, 5, 12, 5, 9, 7, 4, 7, 5, 11, 8, 5, 4, 5, 12, 6, 5, 9, 9, 7, 7, 12, 7, 12, 8, 8, 8, 4, 6, 4, 5, 6, 5, 9, 5, 4, 5, 6, 12, 6, 5, 12, 6, 6, 9, 12, 6, 9, 4, 6, 7, 6, 12, 7, 12, 4, 11, 5, 9, 4, 12, 6, 10, 8, 4, 4, 7, 7, 5, 8, 12, 6, 7, 4, 4, 8, 6, 4, 7, 9, 9, 6, 8, 6, 10, 6, 11, 6, 12, 11, 5, 6, 6, 9, 5, 11, 12, 7, 5, 5, 7, 11, 6, 12, 9, 12, 6, 6, 5, 8, 4, 4, 5, 4, 7, 7, 6, 7, 9, 6, 6, 6, 6, 6, 7, 8, 12, 5, 9, 7, 8, 12, 9, 4, 10, 5, 6, 7, 12, 7, 7, 5, 11, 8, 9, 4, 5, 6, 12, 10, 5, 12, 6, 8, 4, 8, 5, 5, 9, 7, 7, 8, 9, 4, 5, 7, 9, 7, 8, 12, 6, 6, 4, 7, 6, 12, 5, 6, 8, 12, 10, 7, 5, 9, 9, 12, 5, 11, 5, 7, 4, 6, 9, 10, 6, 5, 6, 4, 5, 9, 5, 6, 4, 6, 8, 7, 8, 7, 5, 8, 4, 5, 5, 10, 12, 7, 9, 5, 8, 10, 9, 12, 12, 7, 11, 12, 4, 7, 5, 12, 12, 6, 10, 6, 5, 6, 7, 5, 5, 6, 6, 9, 4, 5, 12, 10, 9, 4, 8, 7, 4, 11, 4, 8, 10, 5, 6, 9, 11, 8, 11, 5, 4, 12, 4, 7, 6, 8, 6, 5, 8, 8, 5, 6, 4, 10, 7, 6, 9, 5, 5, 5, 5, 8, 11, 6, 5, 10, 5, 7, 9, 9, 6, 7, 12, 7, 7, 12, 6, 9, 5, 6, 8, 9, 4, 9, 8, 5, 8, 8, 5, 7, 12, 8, 12, 5, 5, 5, 10, 6, 5, 8, 4, 12, 10, 5, 12, 5, 5, 6, 4, 5, 4, 8, 8, 6, 5, 12, 5, 5, 5, 6, 10, 4, 12, 5, 8, 7, 8, 6, 4, 7, 12, 4, 7, 7, 7, 11, 12, 7, 7, 11, 12, 8, 6, 8, 4, 5, 5, 7, 9, 4, 11, 7, 8, 7, 5, 5, 9, 8, 10, 8, 4, 5, 8, 7, 8, 5, 5, 6, 7, 8, 5, 8, 6, 4, 5, 6, 4, 4, 6, 9, 7, 10, 9, 6, 4, 5, 8, 4, 5, 4, 12, 5, 6, 7, 11, 6, 12, 6, 4, 7, 11, 6, 8, 9, 4, 12, 7, 10, 4, 4, 5, 5, 6, 5, 5, 11, 6, 4, 9, 6, 9, 7, 12, 7, 10, 4, 5, 7, 12, 5, 9, 4, 5, 8, 6, 8, 6, 5, 6, 8, 7, 4, 9, 7, 7, 11, 8, 4, 7, 5, 5, 9, 12, 9, 6, 7, 5, 7, 4, 5, 5, 7, 5, 12, 12, 7, 8, 5, 8, 5, 5, 8, 12, 12, 6, 8, 5, 5, 12, 12, 7, 8, 5, 7, 5, 8, 5, 10, 5, 7, 8, 7, 7, 7, 9, 5, 4, 7, 12, 4, 9, 4, 5, 6, 12, 10, 12, 6, 7, 9, 7, 7, 6, 6, 4, 5, 12, 12, 5, 12, 5, 5, 9, 12, 8, 8, 6, 9, 8, 4, 4, 6, 6, 8, 7, 4, 6, 7, 7, 6, 11, 5, 10, 5, 11, 5, 4, 8, 12, 9, 7, 8, 6, 4, 6, 7, 5, 6, 8, 7, 7, 5, 5, 9, 5, 10, 4, 5, 12, 10, 11, 8, 12, 4, 5, 8, 4, 9, 5, 8, 7, 6, 5, 4, 9, 9, 8, 7, 12, 9, 9, 12, 6, 5, 12, 12, 6, 8, 10, 6, 5, 7, 12, 12, 8, 8, 4, 11, 4, 6, 5, 8, 11, 7, 7, 4, 4, 4, 7, 8, 5, 5, 7, 9, 7, 4, 10, 5, 12, 5, 10, 7, 6, 12, 4, 4, 9, 12, 4, 7, 10, 6, 9, 4, 4, 5, 6, 7, 12, 11, 8, 6, 5, 5, 5, 8, 6, 8, 4, 8, 4, 4, 12, 6, 7, 7, 7, 5, 4, 5, 4, 5, 4, 9, 9, 11], "color": [0.419, 0.065, 0.268, 0.316, 0.16, 0.172, 0.152, 0.328, 0.462, -0.042, 0.7, 0.321, 0.328, 0.112, 0.355, 0.246, -0.106, 0.217, 0.256, 0.067, 0.0, 0.35, 0.281, 0.131, 0.084, 0.35, 0.175, 0.167, 0.029, 0.099, -0.058, 0.475, 0.355, 0.35, 0.195, 0.344, 0.25, 0.176, 0.125, 0.137, 0.317, 0.257, 0.391, 0.4, 0.163, 0.4, 0.234, 0.533, 0.333, 0.442, 0.134, 0.321, 0.288, 0.094, 0.133, 0.167, 0.25, 0.142, 0.433, 0.5, 0.367, 0.231, -0.025, 0.35, 0.043, 0.094, 0.332, 0.495, 0.151, 0.004, 0.5, 0.2, 0.547, 0.38, 0.291, -0.562, 0.172, 0.46, 0.146, 0.256, 0.305, 0.228, 0.159, 0.23, 0.0, 0.412, 0.098, 0.222, -0.193, 0.178, 0.4, 0.129, 0.403, 0.532, 0.186, 0.176, 0.233, 0.054, 0.182, 0.423, 0.517, 0.132, -0.148, 0.373, 0.562, 0.0, 0.558, 0.49, 0.41, 0.467, 0.071, 0.307, 0.264, 0.381, 0.348, 0.322, 0.056, 0.373, 0.8, 0.167, -0.14, 0.112, 0.8, 0.253, 0.226, 0.11, 0.248, 0.25, 0.396, 0.542, -0.029, 0.717, 0.187, 0.214, 0.317, 0.429, 0.215, 0.468, 0.016, 0.107, 0.207, 0.698, 0.1, 0.9, 0.4, 0.217, 0.038, -0.166, 0.452, 0.109, 0.229, 0.419, 0.4, 0.0, 0.086, 0.305, 0.142, 0.3, 0.081, 0.124, 0.128, 0.371, 0.082, 0.261, 0.215, -0.015, 0.55, 0.32, 0.509, 0.236, 0.475, 0.302, 0.067, 0.033, 0.567, 0.272, 0.434, 0.181, 0.336, 0.466, 0.177, 0.14, 0.168, 0.161, 0.386, 0.22, 0.108, 0.132, 0.452, 0.229, 0.11, 0.266, 0.229, 0.293, 0.248, 0.289, 0.105, -0.032, 0.232, 0.938, 0.067, 0.112, 0.389, 0.467, 0.095, 0.148, 0.318, 0.219, 0.538, 0.202, 0.233, -0.3, 0.415, 0.175, 0.523, 0.474, 0.256, 0.506, 0.355, 0.4, 0.455, -0.1, 0.154, 0.233, 0.154, 0.347, 0.604, 0.282, 0.486, -0.275, -0.083, 0.129, 0.168, 0.264, 0.078, 0.6, 0.143, -0.128, 0.4, 0.433, 0.225, 0.17, 0.05, 0.233, 0.45, -0.091, 0.011, 0.316, 0.0, -0.158, 0.273, 0.426, 0.239, 0.249, 0.073, 0.086, 0.39, 0.098, 0.13, 0.253, 0.265, 0.26, 0.588, -0.052, 0.043, 0.293, 0.451, 0.325, -0.111, 0.002, 0.225, 0.5, 0.238, 0.047, 0.422, 0.301, 0.185, 0.2, 0.467, 0.32, 0.455, -0.113, 0.142, 0.262, 0.264, 0.153, 0.133, 0.328, 0.35, 0.098, 0.5, 0.331, 0.287, 0.149, -0.48, 0.086, 0.312, 0.1, 0.1, 0.388, 0.17, 0.089, -0.051, 0.107, 0.479, 0.109, 0.433, 0.121, 0.11, 0.0, 0.683, 0.283, 0.08, 0.231, -0.312, 0.346, 0.345, 0.299, 0.147, 0.05, 0.428, 0.195, 0.26, -0.498, 0.409, 0.45, 0.314, 0.295, 0.287, 0.025, 0.318, 0.558, -0.169, 0.278, -0.023, 0.91, 0.228, 0.215, 0.482, 0.093, 0.381, 0.5, 0.382, 0.4, -0.182, 0.043, 0.368, 0.234, 0.0, 0.418, 0.161, 0.45, 0.424, 0.273, 0.088, 0.288, 0.196, 0.475, -0.133, 0.2, 0.233, 0.201, 0.268, 0.775, 0.101, 0.408, 0.411, 0.014, 0.162, 0.257, 0.429, 0.145, 0.272, 0.164, -0.071, 0.825, 0.3, -0.203, 0.148, 0.268, 0.417, 0.561, 0.322, 0.0, 0.265, 0.086, 0.203, 0.379, 0.212, -0.007, 0.033, 0.266, 0.162, 0.062, 0.478, 0.277, 0.0, 0.3, 0.375, 0.55, 0.118, 0.002, 0.489, 0.156, -0.142, 0.45, 0.407, 0.425, 0.512, -0.067, 0.168, 0.32, 0.054, -0.019, 0.465, 0.051, 0.396, 0.475, 0.198, 0.533, 0.45, 0.152, 0.02, 0.1, 0.592, -0.056, 0.243, 0.35, 0.367, 0.021, 0.285, 0.126, 0.311, 0.417, 0.171, 0.065, -0.21, 0.072, 0.045, 0.332, -0.123, 0.442, 0.129, 0.625, 0.263, 0.14, -0.056, 0.192, 0.197, 0.588, 0.138, 0.288, 0.733, 0.111, 0.0, 0.251, 0.479, 0.24, 0.604, 0.032, 0.467, 0.149, 0.097, 0.15, 0.675, 0.5, -0.18, 0.0, 0.093, 0.214, 0.402, 0.344, 0.478, 0.377, 0.402, 0.283, 0.14, 0.355, -1.0, 0.244, 0.6, 0.053, -0.2, 0.358, 0.355, 0.3, 0.355, 0.191, 0.248, 0.515, 0.389, 0.133, 0.236, 0.513, 0.395, 0.479, -0.198, 0.014, 0.263, -0.781, -0.105, 0.329, -0.196, -0.042, 0.168, -0.367, 0.097, 0.08, -0.063, 0.0, 0.469, 0.001, 0.063, 0.442, 0.4, 0.717, 0.201, 0.386, 0.5, -0.018, 0.132, 0.286, 0.215, 0.12, 0.207, 0.093, 0.316, 0.418, -0.281, 0.355, 0.433, 0.267, 0.1, 0.9, 0.812, 0.176, 0.167, 0.58, -0.058, 0.375, 0.322, -0.045, 0.572, 0.158, 0.525, 0.188, 0.274, 0.128, 0.0, 0.217, 0.5, -0.008, 0.16, 0.317, 0.206, 0.338, 0.161, 0.174, 0.294, 0.65, 0.167, -0.378, 0.167, 0.178, 0.138, 0.129, 0.447, 0.4, 0.172, 0.305, 0.167, -0.5, 0.14, 0.4, 0.475, 0.583, 0.352, -0.102, 0.275, 0.6, 0.509, 0.257, 0.404, 0.4, 0.047, 0.265, -0.307, 0.256, 0.079, 0.305, 0.132, 0.23, 0.467, 0.229, 0.263, 0.186, 0.312, 0.15, 0.23, 0.404, 0.364, 0.412, 0.144, -0.097, 0.612, 0.169, 0.354, 0.308, -0.146, 0.091, 0.25, -0.116, 0.306, 0.417, 0.033, 0.119, 0.3, 0.342, 0.042, 0.289, 0.004, 0.394, 0.082, 0.688, 0.291, 0.38, 0.289, 0.232, 0.142, 1.0, 0.248, 0.28, 0.479, 0.117, -0.054, -0.069, 0.363, 0.391, -0.238, 0.203, -0.126, 0.52, 0.004, 0.038, 0.047, 0.067, 0.16, 0.412, -0.144, 0.138, -0.038, 0.24, 0.577, 0.254, 0.256, 0.358, 0.247, 0.193, 0.417, 0.271, 0.1, 0.417, 0.412, 0.1, 0.09, 0.2, 0.143, -0.083, 0.386, 0.131, -0.104, 0.175, -0.165, 0.314, -0.068, 0.2, 0.194, 0.35, 0.0, 0.239, 0.208, 0.164, 0.345, 0.219, -0.483, 0.212, 0.173, 0.222, 0.533, 0.038, 0.145, 0.442, 0.667, 0.002, 0.137, -0.083, 0.143, 0.3, 0.266, 0.104, 0.5, 0.193, 0.062, 0.367, 0.462, 0.48, 0.5, 0.273, 0.33, 0.288, 0.375, 0.096, 0.042, 0.356, 0.8, 0.008, 0.169, 0.129, 0.131, 0.4, 0.141, 0.246, -0.03, 0.125, 0.133, 0.426, 0.39, 0.07, 1.0, 0.121, 0.418, 0.149, 0.211, 0.6, 0.153, 0.466, 0.029, 0.354, -0.032, 0.8, 0.616, 0.16, 0.444, 0.338, 0.0, 0.5, 0.219, 0.264, 0.023, -0.04, 0.025, 0.246, 0.45, 0.133, 0.2, 0.227, 0.118, 0.7, 0.104, 0.047, 0.312, 0.333, 0.067, 0.0, 0.433, 0.261, 0.418, 0.2, 0.333, 0.287, 0.475, 0.127, 0.454, 0.371, 0.264, 0.502, 0.482, 0.461, 0.088, 0.139, 0.214, 0.0, 0.071, 0.368, 0.018, 0.25, 0.212, 0.427, 0.08, 0.422, 0.7, -0.061, 0.252, 0.254, 0.484, 0.422, 0.242, 0.289, -0.087, 0.036, 0.378, 0.351, 0.108, 0.233, 0.232, 0.358, 0.625, 0.311, 0.206, 0.219, 0.338, 0.017, 0.28, 0.233, 0.176, 0.136, 0.193, 0.545, 0.805, 0.47, 0.253, 0.267, 0.24, 0.294, 0.032, 0.022, 0.242, 0.195, 0.076, 0.12, 0.6, 0.217, 0.6, 0.66, 0.7, 0.254, -0.007, 0.487, 0.193, 0.225, -0.117, 0.246, 0.262, 0.339, 0.397, 0.725, 0.286, 0.0, 0.271, 0.194, 0.299, 0.417, 0.175, 0.256, 0.236, 0.622, 0.104, 0.384, 0.45, 0.152, 0.134, 0.398, 0.217, 0.324, 0.26, 0.253, 0.45, 0.231, -0.429, -0.183, 0.275, 0.197, -0.067, 0.655, -0.072, -0.073, -0.05, -0.1, 0.21, 0.279, 0.103, 0.136, 0.078, -0.101, 0.475, 0.394, -0.02, 0.151, 0.02, 0.133, 0.45, 0.073, 0.546, -0.091, 0.024, 0.21, 0.12, 0.317, 0.55, 0.413, -0.225, 0.563, 0.5, -0.236, 0.095, 0.153, 0.336, 0.01, 0.362, 0.25, 0.383, 0.317, 0.154, -0.25, 0.402, 0.667, 0.164, 0.321, 0.335, 0.167, 0.235, 0.275, 0.855, -0.076, 0.179, -0.108, 0.212, 0.242, 0.08, -0.029, 0.171, -0.085, -0.089, 0.233, 0.307, -0.239, 0.667, -0.031, 0.183, -0.088, 0.231, 0.017, 0.392, 0.312, 0.257, 0.432, 0.023, 0.352, 0.232, 0.555, 0.401, 0.296, 0.093, 0.317, 0.041, 0.179, 0.327, 0.222, -0.442, 0.0, -0.062, 0.127, 0.04, 0.186, -0.253, 0.41, 0.154, 0.0, 0.265, 0.157, 0.003, 0.6, 0.272, 0.31, -0.038, 0.392, 0.267, 0.383, 0.425, 0.304, 0.244, 0.167, 0.0, 0.06, 0.32, 0.397, 0.45, 0.186, 0.047, 0.342, -0.275, 0.196, 0.302, 0.85, -0.164, 0.276, -0.036, 0.387, 0.26, 0.261, 0.331, 0.3, 0.468, 0.271, 0.285, 0.219, 0.142, 0.352, 0.568, 0.233, 0.186, 0.283, 0.45, 0.467, -0.058, -0.387, 0.367, 0.083, 0.292, 0.331, 0.308, 0.63, 0.197, -0.1, 0.4, 0.4, 0.5, 0.4, 0.285, 0.25, 0.197, -0.033, 0.22, 0.186, 0.095, 0.8, 0.77, 0.342, 0.451, 0.7, 0.29, 0.265, 0.112, 0.22, 0.14, 0.17, -0.03, 0.01, 0.579, 0.337, 0.125, 0.141, 0.546, 0.308, -0.3, -0.171, 0.615, 0.267, 0.187, 0.525, 0.358, 0.101, 0.204, 0.034, -0.078, 0.075, -0.144, -0.075, 0.1, 0.004, 0.617, 0.222, 0.25, 0.208, 0.239, 0.52, 0.13, 0.182, 0.177, 0.27, 0.269, 0.165, 0.116, 0.1, 0.362, 0.238, 0.9, -0.004, 0.475, 0.415, 0.358, 0.202, 0.112, 0.248, 0.33, 0.309, -0.066, 0.367, 0.343, 0.394, 1.0, 0.107, 0.45, 0.4, 0.237, 0.361, 0.5, 0.069, -0.044, 0.181, 0.154, -0.137, 0.291, 0.39, 0.384, 0.136, -0.09, 0.5, 0.317, 0.246, 0.562, 0.136, 0.043, 0.111, 0.375, 0.048, 0.429, -0.003, 0.445, -0.036, -0.405, 0.19, 0.162, 0.0, 0.298, 0.373, 0.172, 0.024, 0.196, 0.0, 0.592, 0.381, 0.358, 0.419, 0.393, 0.232, -0.062, 0.227, 0.114, 0.181, 0.311, 0.625, 0.022, 0.314, 0.061, 0.005, -0.007, 0.126, 0.5, 0.175, 0.396, 0.188, 0.667, 0.32, 0.092, 0.294, 0.23, 0.295, 0.489, 0.4, -0.211, 0.431, 0.217, -0.115, 0.16, 0.196, 0.314, 0.417, 0.332, -0.21, 0.127, 0.454, 0.988, 0.402, 0.033, 0.333, 0.028, 0.225, 0.21, 0.262, 0.36, 0.115, 0.315, 0.583, 0.507, 0.307, 0.667, 0.087, -0.132, 0.432]};
+    const heatmapData = {"x": ["Positive", "Neutral", "Negative"], "y": [1, 2, 3, 4, 5], "z": [[194, 103, 170], [172, 61, 54], [292, 59, 42], [632, 61, 18], [2867, 185, 74]]};
+    const topTermsData = [{"term": "good", "count": 2264}, {"term": "great", "count": 2178}, {"term": "like", "count": 2126}, {"term": "taste", "count": 1608}, {"term": "flavor", "count": 1348}, {"term": "love", "count": 1276}, {"term": "coffee", "count": 1276}, {"term": "chips", "count": 1240}, {"term": "it's", "count": 1165}, {"term": "best", "count": 1072}, {"term": "tea", "count": 1057}, {"term": "really", "count": 906}];
+    const sentimentCounts = {"labels": ["Positive", "Neutral", "Negative"], "values": [4157, 469, 358]};
+
+    const tabButtons = Array.from(document.querySelectorAll('[data-tab]'));
+    const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+
+    function setActiveTab(tabName, shouldScroll = false) {
+      tabButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === tabName);
+      });
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+      });
+      if (shouldScroll) {
+        const activePanel = tabPanels.find((panel) => panel.dataset.tabPanel === tabName);
+        if (activePanel) {
+          activePanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+      }
+      window.requestAnimationFrame(() => {
+        Plotly.Plots.resize('scatter3d');
+        Plotly.Plots.resize('donut');
+        Plotly.Plots.resize('heatmap');
+        Plotly.Plots.resize('topterms');
+      });
+    }
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => setActiveTab(button.dataset.tab, true));
+    });
+
+    const chartLayout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      margin: {l: 56, r: 28, t: 18, b: 52},
+      font: {family: 'Space Grotesk, sans-serif', color: '#eaf3ff'},
+      hoverlabel: {bgcolor: '#08111c', bordercolor: '#4ffcff', font: {family: 'IBM Plex Mono, monospace'}},
+    };
+
+    const scatterTrace = {
+      type: 'scatter',
+      mode: 'markers',
+      x: scatterData.x,
+      y: scatterData.z,
+      text: scatterData.label,
+      marker: {
+        size: scatterData.size,
+        color: scatterData.color,
+        colorscale: [[0, '#ff4f7a'], [0.5, '#ffd166'], [1, '#41f29b']],
+        opacity: 0.75,
+        line: {color: 'rgba(255,255,255,0.3)', width: 1},
+        symbol: 'circle'
+      },
+      hovertemplate:
+        '<b>%{text}</b><br>' +
+        'Words: %{x}<br>' +
+        'Polarity: %{y:.3f}<extra></extra>'
+    };
+
+    Plotly.newPlot('scatter3d', [scatterTrace], {
+      ...chartLayout,
+      xaxis: {title: 'Word Count', gridcolor: 'rgba(79,252,255,0.14)', zerolinecolor: 'rgba(79,252,255,0.22)', color: '#dce9f9'},
+      yaxis: {title: 'Polarity Score', gridcolor: 'rgba(79,252,255,0.14)', zerolinecolor: 'rgba(79,252,255,0.22)', color: '#dce9f9'},
+      showlegend: false,
+    }, {responsive: true});
+
+    Plotly.newPlot('donut', [{
+      type: 'pie',
+      labels: sentimentCounts.labels,
+      values: sentimentCounts.values,
+      hole: 0.58,
+      sort: false,
+      direction: 'clockwise',
+      marker: {colors: ['#41f29b', '#ff4fd8', '#ff5a7a']},
+      textinfo: 'label+percent',
+      hovertemplate: '%{label}<br>%{value} reviews<br>%{percent}<extra></extra>',
+      textfont: {family: 'IBM Plex Mono, monospace', size: 12, color: '#f7fbff'},
+      pull: [0.03, 0.03, 0.03],
+    }], {
+      ...chartLayout,
+      margin: {l: 22, r: 22, t: 0, b: 0},
+      showlegend: true,
+      legend: {orientation: 'h', y: -0.15, x: 0.12, font: {color: '#dce9f9'}},
+    }, {responsive: true});
+
+    Plotly.newPlot('heatmap', [{
+      type: 'heatmap',
+      z: heatmapData.z,
+      x: heatmapData.x,
+      y: heatmapData.y,
+      colorscale: [
+        [0.0, '#08111c'],
+        [0.25, '#163455'],
+        [0.5, '#4ffcff'],
+        [0.75, '#41f29b'],
+        [1.0, '#ff4fd8']
+      ],
+      hovertemplate: 'Score %{y} vs %{x}: %{z} reviews<extra></extra>',
+      colorbar: {title: 'Reviews', tickfont: {color: '#eaf3ff'}, titlefont: {color: '#eaf3ff'}},
+    }], {
+      ...chartLayout,
+      margin: {l: 58, r: 22, t: 12, b: 52},
+      xaxis: {title: 'Sentiment', gridcolor: 'rgba(79,252,255,0.12)', color: '#dce9f9'},
+      yaxis: {title: 'Star Rating', gridcolor: 'rgba(79,252,255,0.12)', color: '#dce9f9'},
+    }, {responsive: true});
+
+    Plotly.newPlot('topterms', [{
+      type: 'bar',
+      x: topTermsData.map(item => item.term),
+      y: topTermsData.map(item => item.count),
+      marker: {
+        color: topTermsData.map((_, index) => index % 3 === 0 ? '#4ffcff' : index % 3 === 1 ? '#41f29b' : '#ff4fd8'),
+        line: {color: 'rgba(255,255,255,0.14)', width: 1},
+      },
+      hovertemplate: '%{x}<br>%{y} mentions<extra></extra>',
+      text: topTermsData.map(item => item.count),
+      textposition: 'outside',
+      cliponaxis: false,
+    }], {
+      ...chartLayout,
+      margin: {l: 54, r: 18, t: 12, b: 70},
+      xaxis: {tickangle: -24, color: '#dce9f9', gridcolor: 'rgba(79,252,255,0.08)'},
+      yaxis: {title: 'Frequency', color: '#dce9f9', gridcolor: 'rgba(79,252,255,0.08)'},
+    }, {responsive: true});
+  </script>
+</body>
+</html>
